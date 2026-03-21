@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>GIF Background</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      body {
+        background: #000;
+        overflow: hidden;
+        font-family: monospace;
+      }
+
+      #gif {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+        transform-origin: center center;
+        backface-visibility: hidden;
+      }
+
+      #fx {
+        position: fixed;
+        inset: 0;
+        z-index: 5;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+
+      #flash {
+        position: fixed;
+        inset: 0;
+        z-index: 10;
+        pointer-events: none;
+        background: #fff;
+        opacity: 0;
+      }
+
+      #error {
+        position: fixed;
+        inset: auto 20px 20px 20px;
+        z-index: 20;
+        padding: 12px 14px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(0, 0, 0, 0.75);
+        color: rgba(255, 255, 255, 0.82);
+        font-size: 14px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+    </style>
+  </head>
+  <body>
+    <img id="gif" alt="">
+    <canvas id="fx"></canvas>
+    <div id="flash"></div>
+    <div id="error" hidden>loading gif background...</div>
+
+    <script>
+      const img = document.getElementById("gif");
+      const canvas = document.getElementById("fx");
+      const flash = document.getElementById("flash");
+      const errorBox = document.getElementById("error");
+      const ctx = canvas.getContext("2d");
+
+      let playbackTimer = null;
+      let currentGif = "";
+      let transitionPool = [];
+      let gifFiles = [];
+      let settings = null;
+
+      function setError(message) {
+        errorBox.hidden = false;
+        errorBox.textContent = message;
+      }
+
+      function clearError() {
+        errorBox.hidden = true;
+      }
+
+      function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      }
+
+      function randBetween(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+
+      function normalizeSettings(config) {
+        const minDuration = Number(config.minDuration) || 5000;
+        const maxDuration = Number(config.maxDuration) || 15000;
+        return {
+          minDuration: Math.min(minDuration, maxDuration),
+          maxDuration: Math.max(minDuration, maxDuration),
+          transitions: config.transitions || {}
+        };
+      }
+
+      function pickGif(files, previous) {
+        if (files.length <= 1) {
+          return files[0] || "";
+        }
+        let candidate = previous;
+        while (candidate === previous) {
+          candidate = files[Math.floor(Math.random() * files.length)];
+        }
+        return candidate;
+      }
+
+      function buildTransitionPool(map) {
+        const transitions = {
+          nothing,
+          hardFlash,
+          doubleFlash,
+          venetianBlinds,
+          pixelDissolve,
+          starWipe,
+          blockFlip,
+          zoomPunch
+        };
+        const pool = [];
+        for (const [name, weight] of Object.entries(map || {})) {
+          const fn = transitions[name];
+          const count = Number(weight) || 0;
+          if (!fn || count <= 0) {
+            continue;
+          }
+          for (let index = 0; index < count; index += 1) {
+            pool.push(fn);
+          }
+        }
+        return pool.length ? pool : [nothing];
+      }
+
+      function pickTransition(pool) {
+        return pool[Math.floor(Math.random() * pool.length)] || nothing;
+      }
+
+      function fetchGifUrls(html) {
+        const matches = html.match(/href="([^"]+\.gif)"/gi) || [];
+        return matches
+          .map((entry) => entry.match(/href="([^"]+)"/i))
+          .filter(Boolean)
+          .map((entry) => entry[1]);
+      }
+
+      function wait(ms) {
+        return new Promise((resolve) => {
+          playbackTimer = window.setTimeout(resolve, ms);
+        });
+      }
+
+      function animate(duration, draw, midpoint, midpointAt) {
+        return new Promise((resolve) => {
+          const start = performance.now();
+          let didMidpoint = false;
+
+          function frame(now) {
+            const elapsed = now - start;
+            const progress = Math.min(elapsed / duration, 1);
+
+            if (!didMidpoint && progress >= midpointAt) {
+              didMidpoint = true;
+              midpoint();
+            }
+
+            draw(progress);
+
+            if (progress < 1) {
+              requestAnimationFrame(frame);
+              return;
+            }
+
+            if (!didMidpoint) {
+              midpoint();
+            }
+            resolve();
+          }
+
+          requestAnimationFrame(frame);
+        });
+      }
+
+      function clearFx() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.globalCompositeOperation = "source-over";
+      }
+
+      function swapGif(nextGif) {
+        currentGif = nextGif;
+        img.src = nextGif;
+      }
+
+      function nothing(callback) {
+        callback();
+      }
+
+      function hardFlash(callback) {
+        flash.style.transition = "none";
+        flash.style.opacity = "1";
+        callback();
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            flash.style.transition = "opacity 0.25s ease-out";
+            flash.style.opacity = "0";
+          });
+        });
+      }
+
+      function doubleFlash(callback) {
+        hardFlash(() => {});
+        window.setTimeout(() => {
+          hardFlash(callback);
+        }, 130);
+      }
+
+      function venetianBlinds(callback) {
+        const rows = 10;
+        const rowHeight = canvas.height / rows;
+        animate(
+          400,
+          (progress) => {
+            clearFx();
+            ctx.fillStyle = "#000";
+            for (let row = 0; row < rows; row += 1) {
+              ctx.fillRect(0, row * rowHeight, canvas.width * progress, rowHeight + 1);
+            }
+          },
+          callback,
+          0.5
+        ).then(clearFx);
+      }
+
+      function pixelDissolve(callback) {
+        const cols = 24;
+        const rows = 14;
+        const cellWidth = canvas.width / cols;
+        const cellHeight = canvas.height / rows;
+        const cells = [];
+        for (let row = 0; row < rows; row += 1) {
+          for (let col = 0; col < cols; col += 1) {
+            cells.push({ col, row });
+          }
+        }
+        for (let index = cells.length - 1; index > 0; index -= 1) {
+          const swapIndex = Math.floor(Math.random() * (index + 1));
+          const temp = cells[index];
+          cells[index] = cells[swapIndex];
+          cells[swapIndex] = temp;
+        }
+
+        animate(
+          500,
+          (progress) => {
+            clearFx();
+            ctx.fillStyle = "#000";
+            const visible = Math.floor(cells.length * progress);
+            for (let index = 0; index < visible; index += 1) {
+              const cell = cells[index];
+              ctx.fillRect(cell.col * cellWidth, cell.row * cellHeight, cellWidth + 1, cellHeight + 1);
+            }
+          },
+          callback,
+          0.5
+        ).then(clearFx);
+      }
+
+      function drawStar(cx, cy, outerRadius, innerRadius) {
+        ctx.beginPath();
+        for (let point = 0; point < 10; point += 1) {
+          const angle = -Math.PI / 2 + point * (Math.PI / 5);
+          const radius = point % 2 === 0 ? outerRadius : innerRadius;
+          const x = cx + Math.cos(angle) * radius;
+          const y = cy + Math.sin(angle) * radius;
+          if (point === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+        }
+        ctx.closePath();
+      }
+
+      function starWipe(callback) {
+        const maxRadius = Math.hypot(canvas.width, canvas.height) * 0.6;
+        animate(
+          600,
+          (progress) => {
+            const eased = progress < 0.5
+              ? 2 * progress * progress
+              : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+            clearFx();
+            ctx.fillStyle = "#000";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.globalCompositeOperation = "destination-out";
+            const outer = maxRadius * eased;
+            drawStar(canvas.width / 2, canvas.height / 2, outer, outer * 0.45);
+            ctx.fill();
+            ctx.globalCompositeOperation = "source-over";
+          },
+          callback,
+          0.4
+        ).then(clearFx);
+      }
+
+      function blockFlip(callback) {
+        img.style.transition = "transform 350ms ease-in";
+        img.style.transform = "perspective(600px) rotateY(90deg)";
+        window.setTimeout(() => {
+          callback();
+          img.style.transition = "none";
+          img.style.transform = "perspective(600px) rotateY(-90deg)";
+          requestAnimationFrame(() => {
+            img.style.transition = "transform 350ms ease-out";
+            img.style.transform = "perspective(600px) rotateY(0deg)";
+            window.setTimeout(() => {
+              img.style.transition = "";
+            }, 350);
+          });
+        }, 350);
+      }
+
+      function zoomPunch(callback) {
+        img.style.transition = "transform 200ms ease-in";
+        img.style.transform = "scale(1.15)";
+        window.setTimeout(() => {
+          callback();
+          img.style.transition = "transform 300ms ease-out";
+          img.style.transform = "scale(1)";
+          window.setTimeout(() => {
+            img.style.transition = "";
+          }, 300);
+        }, 200);
+      }
+
+      async function runPlaybackLoop() {
+        if (!settings || !gifFiles.length) {
+          return;
+        }
+
+        clearError();
+
+        while (true) {
+          const nextGif = pickGif(gifFiles, currentGif);
+          const transition = pickTransition(transitionPool);
+          transition(() => {
+            swapGif(nextGif);
+          });
+          await wait(randBetween(settings.minDuration, settings.maxDuration));
+        }
+      }
+
+      async function init() {
+        resizeCanvas();
+
+        try {
+          const configResponse = await fetch("/config", { cache: "no-store" });
+          if (!configResponse.ok) {
+            throw new Error("config request failed");
+          }
+
+          const config = await configResponse.json();
+          settings = normalizeSettings(config.gifbg || {});
+          transitionPool = buildTransitionPool(settings.transitions || {});
+
+          const gifResponse = await fetch("/gifbg/gifs/", { cache: "no-store" });
+          if (!gifResponse.ok) {
+            throw new Error("gif listing request failed");
+          }
+
+          const html = await gifResponse.text();
+          gifFiles = fetchGifUrls(html);
+
+          if (!gifFiles.length) {
+            setError("no gifs found in /components/gifbg/gifs");
+            return;
+          }
+
+          await runPlaybackLoop();
+        } catch (error) {
+          setError("gif background unavailable");
+        }
+      }
+
+      window.addEventListener("resize", resizeCanvas);
+      init();
+    </script>
+  </body>
+</html>
