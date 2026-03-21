@@ -59,6 +59,23 @@ components/gifbg/gifs/
 
 That folder is created automatically on startup if it does not exist.
 
+## Adding a Component
+
+1. Create `components/<name>/index.html` — fetches its config from `GET /config` and reads `config.<name>`
+2. Add a default config section to `config.json`:
+   ```json
+   "<name>": { ... }
+   ```
+3. Add a route in `serve.py`:
+   ```python
+   elif p == "/<name>":
+       self.send_html(BASE / "components" / "<name>" / "index.html")
+   ```
+4. Add a panel in `dashboard.html` inside the `.panel-row` — reads from `config.<name>`, POSTs the full config on save
+5. Add the new route to the startup print block in `serve.py`
+
+See [`spec.md`](spec.md) for detailed conventions.
+
 ## Project Files
 
 - [`serve.py`](serve.py): stdlib HTTP server and routing
