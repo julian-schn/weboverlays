@@ -128,8 +128,6 @@
     </div>
 
     <script>
-      const TWITCH_ITEM = { text: "twitch.tv/example_user", cls: "tag" };
-
       function escapeHtml(value) {
         return value.replace(/[&<>"']/g, (char) => {
           const map = {
@@ -141,23 +139,6 @@
           };
           return map[char];
         });
-      }
-
-      function buildItems(items) {
-        const output = [];
-        let sinceLast = 0;
-        for (const item of items) {
-          output.push(item);
-          sinceLast += 1;
-          if (sinceLast >= 2) {
-            output.push(TWITCH_ITEM);
-            sinceLast = 0;
-          }
-        }
-        if (!output.length) {
-          output.push(TWITCH_ITEM);
-        }
-        return output;
       }
 
       function buildSegmentHtml(items, separator) {
@@ -180,9 +161,29 @@
           .join("");
       }
 
+      function interleave(items) {
+        const facts = items.filter(i => i.cls !== "tag");
+        const tags = items.filter(i => i.cls === "tag");
+        if (!tags.length) return facts;
+        if (!facts.length) return tags;
+        const output = [];
+        let tagIndex = 0;
+        for (let i = 0; i < facts.length; i++) {
+          output.push(facts[i]);
+          if ((i + 1) % 2 === 0) {
+            output.push(tags[tagIndex % tags.length]);
+            tagIndex++;
+          }
+        }
+        if (facts.length % 2 !== 0) {
+          output.push(tags[tagIndex % tags.length]);
+        }
+        return output;
+      }
+
       function applyTicker(config) {
         const wrap = document.getElementById("tickerWrap");
-        const items = buildItems(Array.isArray(config.items) ? config.items : []);
+        const items = interleave(Array.isArray(config.items) ? config.items : []);
         const separator = String(config.separator || "·");
 
         document.documentElement.style.setProperty("--speed", (config.speed || 180) + "s");

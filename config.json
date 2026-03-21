@@ -4,22 +4,15 @@
     "fontSize": 12,
     "separator": "·",
     "items": [
-      {
-        "text": "latest follower: user123",
-        "cls": ""
-      },
-      {
-        "text": "live coding after midnight",
-        "cls": ""
-      },
-      {
-        "text": "sub goal: 17 / 25",
-        "cls": "tag"
-      },
-      {
-        "text": "discord.gg/example_user",
-        "cls": ""
-      }
+      { "text": "twitch.tv/example_user", "cls": "tag" },
+      { "text": "honey never spoils. archaeologists found 3000-year-old edible honey", "cls": "" },
+      { "text": "a group of flamingos is called a flamboyance", "cls": "" },
+      { "text": "discord.gg/example", "cls": "tag" },
+      { "text": "the shortest war lasted 38 minutes: britain vs zanzibar, 1896", "cls": "" },
+      { "text": "octopuses have three hearts and blue blood", "cls": "" },
+      { "text": "github.com/example_user", "cls": "tag" },
+      { "text": "bananas are technically berries. strawberries are not", "cls": "" },
+      { "text": "a bolt of lightning is five times hotter than the sun's surface", "cls": "" }
     ]
   },
   "gifbg": {

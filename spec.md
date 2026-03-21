@@ -147,19 +147,8 @@ Render a horizontally scrolling bar:
 - Tag item: `rgba(255,255,255,0.95)`, bold
 - Separator: `rgba(255,255,255,0.2)`
 
-### Twitch Link Auto-Injection
-`buildTrack()` inserts `{ text: "twitch.tv/example_user", cls: "tag" }` after every 2 regular
-items so the link appears at least every third item. This is programmatic — not in the items
-array.
-
-```
-for each item:
-  push item
-  sinceLast++
-  if sinceLast >= 2:
-    push TWITCH_ITEM
-    sinceLast = 0
-```
+Ticker rendering separates regular items from `cls: "tag"` items, then inserts one tag after
+every 2 regular items. Tag order is preserved and wraps if there are more fact slots than tags.
 
 ---
 
@@ -238,7 +227,7 @@ Dark terminal. Non-negotiable:
 - Pulsing green dot in status bar via CSS keyframe animation
 
 ### Layout
-- Fixed header: title + subtitle (`example_user stream config`)
+- Fixed header: title + subtitle (`stream config`)
 - Status bar: pulsing dot, gif count, ticker item count (populated from config on load)
 - Below: horizontal scrollable row of panels, one per component, full remaining viewport height
 - Each panel: header (amber title + route hint), scrollable body, fixed save bar at bottom

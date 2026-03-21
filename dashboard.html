@@ -489,7 +489,7 @@
       <header class="app-header">
         <div>
           <h1 class="title">// OVERLAY DASHBOARD</h1>
-          <div class="subtitle">example_user stream config</div>
+          <div class="subtitle">stream config</div>
         </div>
         <div class="header-meta">
           <div>local obs browser sources</div>
@@ -531,10 +531,10 @@
             </div>
 
             <div class="section">
-              <h3 class="section-title">Items</h3>
+              <h3 class="section-title">Facts & Tags</h3>
+              <div class="hint" style="margin-bottom: 10px;">the ticker auto-places one tag after every 2 regular items.</div>
               <div class="button-row" style="margin-bottom: 14px;">
-                <button id="openImportButton" class="button-ghost" type="button">bulk import</button>
-                <button id="clearTickerButton" class="button-red" type="button">clear all</button>
+                <button id="openImportButton" class="button-ghost" type="button">edit all</button>
               </div>
               <ul class="ticker-list" id="tickerList"></ul>
               <div class="empty-note" id="tickerEmpty" hidden>no items yet</div>
@@ -590,15 +590,15 @@
     <div class="modal-backdrop" id="importModal" hidden>
       <div class="modal" role="dialog" aria-modal="true" aria-labelledby="importTitle">
         <div class="modal-header">
-          <h2 class="modal-title" id="importTitle">Bulk Import</h2>
-          <div class="hint">one item per line. use TAG: prefix for highlighted entries.</div>
+          <h2 class="modal-title" id="importTitle">Edit All Items</h2>
+          <div class="hint">one item per line. TAG: prefix marks socials/highlights. tags are auto-spaced in the ticker.</div>
         </div>
         <div class="modal-body">
-          <textarea id="importTextarea" placeholder="latest follower: user123&#10;TAG: live now&#10;discord.gg/example_user"></textarea>
+          <textarea id="importTextarea" placeholder="a fun fact about something&#10;TAG: twitch.tv/example_user&#10;another fun fact"></textarea>
         </div>
         <div class="modal-footer">
           <button id="cancelImportButton" class="button-red" type="button">cancel</button>
-          <button id="confirmImportButton" class="button-green" type="button">import</button>
+          <button id="confirmImportButton" class="button-green" type="button">apply</button>
         </div>
       </div>
     </div>
@@ -801,14 +801,54 @@
           text,
           cls: newItemIsTag ? "tag" : ""
         });
+        normalizeTickerItems();
         input.value = "";
         newItemIsTag = false;
         toggleNewItemTagButton();
         renderTickerPanel();
       }
 
+      function itemsToText(items) {
+        return items.map(function (item) {
+          return item.cls === "tag" ? "TAG: " + item.text : item.text;
+        }).join("\n");
+      }
+
+      function interleaveTickerItems(items) {
+        const facts = items.filter((item) => item.cls !== "tag");
+        const tags = items.filter((item) => item.cls === "tag");
+
+        if (!tags.length) {
+          return facts;
+        }
+        if (!facts.length) {
+          return tags;
+        }
+
+        const output = [];
+        let tagIndex = 0;
+
+        for (let index = 0; index < facts.length; index += 1) {
+          output.push(facts[index]);
+          if ((index + 1) % 2 === 0) {
+            output.push(tags[tagIndex % tags.length]);
+            tagIndex += 1;
+          }
+        }
+
+        if (facts.length % 2 !== 0) {
+          output.push(tags[tagIndex % tags.length]);
+        }
+
+        return output;
+      }
+
+      function normalizeTickerItems() {
+        config.ticker.items = interleaveTickerItems(config.ticker.items);
+      }
+
       function openImportModal() {
-        importTextarea.value = "";
+        importTextarea.value = itemsToText(config.ticker.items);
         importModal.hidden = false;
         importTextarea.focus();
       }
@@ -833,15 +873,11 @@
           });
         });
 
-        if (!imported.length) {
-          closeImportModal();
-          return;
-        }
-
-        config.ticker.items.push(...imported);
+        config.ticker.items = imported;
+        normalizeTickerItems();
         closeImportModal();
         renderTickerPanel();
-        setStatusMessage("tickerSaveStatus", "imported " + imported.length + " items", "success");
+        setStatusMessage("tickerSaveStatus", imported.length + " items applied", "success");
       }
 
       function syncTickerForm() {
@@ -924,6 +960,7 @@
         const items = config.ticker.items;
         const [moved] = items.splice(fromIndex, 1);
         items.splice(toIndex, 0, moved);
+        normalizeTickerItems();
         renderTickerPanel();
       }
 
@@ -942,16 +979,6 @@
         document.getElementById("openImportButton").addEventListener("click", openImportModal);
         document.getElementById("cancelImportButton").addEventListener("click", closeImportModal);
         document.getElementById("confirmImportButton").addEventListener("click", importTickerItems);
-        document.getElementById("clearTickerButton").addEventListener("click", () => {
-          if (!config.ticker.items.length) {
-            return;
-          }
-          if (!window.confirm("Clear all ticker items?")) {
-            return;
-          }
-          config.ticker.items = [];
-          renderTickerPanel();
-        });
         document.getElementById("saveTickerButton").addEventListener("click", saveTicker);
         document.getElementById("saveGifButton").addEventListener("click", saveGif);
 
@@ -976,6 +1003,7 @@
           if (action === "delete") {
             config.ticker.items.splice(index, 1);
           }
+          normalizeTickerItems();
           renderTickerPanel();
         });
 
@@ -1048,6 +1076,7 @@
           }
           const loadedConfig = await response.json();
           config = mergeConfig(loadedConfig);
+          normalizeTickerItems();
           gifCount = await fetchGifCount();
           renderAll();
           toggleNewItemTagButton();
