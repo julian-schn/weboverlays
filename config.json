@@ -1,18 +1,45 @@
 {
   "ticker": {
-    "speed": 180,
-    "fontSize": 12,
+    "speed": 1,
+    "fontSize": 25,
     "separator": "·",
     "items": [
-      { "text": "twitch.tv/example_user", "cls": "tag" },
-      { "text": "honey never spoils. archaeologists found 3000-year-old edible honey", "cls": "" },
-      { "text": "a group of flamingos is called a flamboyance", "cls": "" },
-      { "text": "discord.gg/example", "cls": "tag" },
-      { "text": "the shortest war lasted 38 minutes: britain vs zanzibar, 1896", "cls": "" },
-      { "text": "octopuses have three hearts and blue blood", "cls": "" },
-      { "text": "github.com/example_user", "cls": "tag" },
-      { "text": "bananas are technically berries. strawberries are not", "cls": "" },
-      { "text": "a bolt of lightning is five times hotter than the sun's surface", "cls": "" }
+      {
+        "text": "honey never spoils. archaeologists found 3000-year-old edible honey",
+        "cls": ""
+      },
+      {
+        "text": "a group of flamingos is called a flamboyance",
+        "cls": ""
+      },
+      {
+        "text": "twitch.tv/example_user",
+        "cls": "tag"
+      },
+      {
+        "text": "the shortest war lasted 38 minutes: britain vs zanzibar, 1896",
+        "cls": ""
+      },
+      {
+        "text": "octopuses have three hearts and blue blood",
+        "cls": ""
+      },
+      {
+        "text": "discord.gg/example",
+        "cls": "tag"
+      },
+      {
+        "text": "bananas are technically berries. strawberries are not",
+        "cls": ""
+      },
+      {
+        "text": "a bolt of lightning is five times hotter than the sun's surface",
+        "cls": ""
+      },
+      {
+        "text": "github.com/example_user",
+        "cls": "tag"
+      }
     ]
   },
   "gifbg": {
