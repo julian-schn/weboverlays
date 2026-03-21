@@ -1,0 +1,39 @@
+{
+  "ticker": {
+    "speed": 180,
+    "fontSize": 12,
+    "separator": "·",
+    "items": [
+      {
+        "text": "latest follower: user123",
+        "cls": ""
+      },
+      {
+        "text": "live coding after midnight",
+        "cls": ""
+      },
+      {
+        "text": "sub goal: 17 / 25",
+        "cls": "tag"
+      },
+      {
+        "text": "discord.gg/example_user",
+        "cls": ""
+      }
+    ]
+  },
+  "gifbg": {
+    "minDuration": 5000,
+    "maxDuration": 15000,
+    "transitions": {
+      "nothing": 4,
+      "hardFlash": 2,
+      "doubleFlash": 1,
+      "venetianBlinds": 1,
+      "pixelDissolve": 1,
+      "starWipe": 1,
+      "blockFlip": 1,
+      "zoomPunch": 1
+    }
+  }
+}
