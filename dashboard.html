@@ -1,0 +1,1063 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Overlay Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap"
+      rel="stylesheet"
+    >
+    <style>
+      :root {
+        --bg: #0a0a0a;
+        --panel: #111111;
+        --panel-alt: #151515;
+        --border: #2a2a2a;
+        --green: #39ff6e;
+        --amber: #ffb300;
+        --red: #ff4444;
+        --text: #d5dfd8;
+        --muted: #7e8a81;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Share Tech Mono", monospace;
+        overflow: hidden;
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        opacity: 0.14;
+        background: repeating-linear-gradient(
+          to bottom,
+          rgba(255, 255, 255, 0.06) 0,
+          rgba(255, 255, 255, 0.06) 1px,
+          transparent 1px,
+          transparent 4px
+        );
+      }
+
+      button,
+      input,
+      textarea {
+        font: inherit;
+      }
+
+      button,
+      input,
+      textarea {
+        border: 1px solid var(--border);
+        background: #0d0d0d;
+        color: var(--text);
+      }
+
+      button {
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+
+      button:hover {
+        filter: brightness(1.08);
+      }
+
+      input,
+      textarea {
+        width: 100%;
+        padding: 10px 12px;
+      }
+
+      textarea {
+        min-height: 240px;
+        resize: vertical;
+      }
+
+      .shell {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+
+      .app-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 26px 28px 18px;
+        border-bottom: 1px solid var(--border);
+        background:
+          radial-gradient(circle at top right, rgba(57, 255, 110, 0.1), transparent 32%),
+          linear-gradient(180deg, rgba(18, 18, 18, 0.96), rgba(10, 10, 10, 0.96));
+      }
+
+      .title {
+        margin: 0;
+        font-family: "VT323", monospace;
+        font-size: clamp(2.6rem, 5vw, 4.3rem);
+        line-height: 0.9;
+        color: var(--green);
+        text-shadow: 0 0 18px rgba(57, 255, 110, 0.35);
+      }
+
+      .subtitle {
+        margin-top: 8px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+      }
+
+      .header-meta {
+        align-self: flex-end;
+        font-size: 0.9rem;
+        color: var(--muted);
+        text-align: right;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .status-bar {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        padding: 12px 28px;
+        border-bottom: 1px solid var(--border);
+        background: rgba(17, 17, 17, 0.96);
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: var(--muted);
+      }
+
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: var(--green);
+        box-shadow: 0 0 12px rgba(57, 255, 110, 0.7);
+        animation: pulse 1.6s infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 0.35;
+          transform: scale(0.9);
+        }
+
+        50% {
+          opacity: 1;
+          transform: scale(1.1);
+        }
+      }
+
+      .panel-row {
+        display: flex;
+        gap: 20px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        flex: 1;
+        padding: 20px 28px 28px;
+        scroll-snap-type: x proximity;
+      }
+
+      .panel {
+        display: flex;
+        flex-direction: column;
+        min-width: min(460px, calc(100vw - 56px));
+        width: min(460px, calc(100vw - 56px));
+        background: linear-gradient(180deg, rgba(22, 22, 22, 0.98), rgba(12, 12, 12, 0.98));
+        border: 1px solid var(--border);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+        scroll-snap-align: start;
+      }
+
+      .panel-header {
+        padding: 18px 18px 14px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .panel-title {
+        margin: 0;
+        font-family: "VT323", monospace;
+        font-size: 2rem;
+        color: var(--amber);
+        text-transform: uppercase;
+      }
+
+      .route-hint {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 0.86rem;
+      }
+
+      .panel-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 18px;
+      }
+
+      .save-bar {
+        position: sticky;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 18px;
+        border-top: 1px solid var(--border);
+        background: rgba(17, 17, 17, 0.98);
+      }
+
+      .section {
+        margin-bottom: 20px;
+        padding: 16px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.02);
+      }
+
+      .section:last-child {
+        margin-bottom: 0;
+      }
+
+      .section-title {
+        margin: 0 0 14px;
+        color: var(--green);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 0.92rem;
+      }
+
+      .field {
+        margin-bottom: 14px;
+      }
+
+      .field:last-child {
+        margin-bottom: 0;
+      }
+
+      .field label,
+      .inline-label {
+        display: block;
+        margin-bottom: 6px;
+        color: #ecefe8;
+      }
+
+      .hint {
+        margin-top: 5px;
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+
+      .field-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .narrow-input {
+        max-width: 110px;
+      }
+
+      .button-row,
+      .list-actions,
+      .add-row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .button-green,
+      .save-button {
+        border-color: rgba(57, 255, 110, 0.45);
+        color: var(--green);
+      }
+
+      .button-red {
+        border-color: rgba(255, 68, 68, 0.45);
+        color: var(--red);
+      }
+
+      .button-ghost {
+        border-color: rgba(255, 179, 0, 0.4);
+        color: var(--amber);
+      }
+
+      .save-button {
+        padding: 10px 16px;
+        background: rgba(57, 255, 110, 0.08);
+      }
+
+      .save-status {
+        min-height: 1.2em;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      .save-status.error {
+        color: var(--red);
+      }
+
+      .save-status.success {
+        color: var(--green);
+      }
+
+      .ticker-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      .ticker-row {
+        display: grid;
+        grid-template-columns: 28px 1fr auto;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        background: var(--panel-alt);
+      }
+
+      .ticker-row.drag-over {
+        border-color: var(--green);
+      }
+
+      .drag-handle {
+        color: var(--amber);
+        text-align: center;
+        cursor: grab;
+      }
+
+      .ticker-text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .ticker-text.tag {
+        color: var(--green);
+      }
+
+      .tag-button.active {
+        color: var(--green);
+        border-color: rgba(57, 255, 110, 0.45);
+      }
+
+      .add-row input {
+        flex: 1;
+        min-width: 200px;
+      }
+
+      .transition-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 120px 32px;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .transition-row:last-child {
+        margin-bottom: 0;
+      }
+
+      input[type="range"] {
+        accent-color: var(--amber);
+        padding: 0;
+      }
+
+      .transition-value {
+        color: var(--amber);
+        text-align: right;
+      }
+
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: rgba(0, 0, 0, 0.72);
+        z-index: 50;
+      }
+
+      .modal-backdrop[hidden] {
+        display: none;
+      }
+
+      .modal {
+        width: min(640px, 100%);
+        border: 1px solid var(--border);
+        background: linear-gradient(180deg, rgba(20, 20, 20, 0.98), rgba(10, 10, 10, 0.98));
+        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
+      }
+
+      .modal-header,
+      .modal-footer {
+        padding: 16px 18px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .modal-footer {
+        border-top: 1px solid var(--border);
+        border-bottom: 0;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+
+      .modal-title {
+        margin: 0;
+        font-family: "VT323", monospace;
+        font-size: 2rem;
+        color: var(--amber);
+      }
+
+      .modal-body {
+        padding: 18px;
+      }
+
+      .empty-note {
+        padding: 14px;
+        border: 1px dashed var(--border);
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+
+      .load-error {
+        padding: 40px 28px;
+        color: var(--red);
+        text-transform: uppercase;
+      }
+
+      @media (max-width: 800px) {
+        body {
+          overflow: auto;
+        }
+
+        .shell {
+          min-height: auto;
+        }
+
+        .app-header {
+          flex-direction: column;
+        }
+
+        .header-meta {
+          align-self: flex-start;
+          text-align: left;
+        }
+
+        .status-bar {
+          flex-wrap: wrap;
+        }
+
+        .panel-row {
+          flex-direction: column;
+          overflow: visible;
+        }
+
+        .panel {
+          width: 100%;
+          min-width: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <header class="app-header">
+        <div>
+          <h1 class="title">// OVERLAY DASHBOARD</h1>
+          <div class="subtitle">example_user stream config</div>
+        </div>
+        <div class="header-meta">
+          <div>local obs browser sources</div>
+          <div>http://localhost:8080/dashboard</div>
+        </div>
+      </header>
+
+      <div class="status-bar">
+        <span class="dot" aria-hidden="true"></span>
+        <span id="statusSummary">loading config</span>
+        <span id="gifCountLabel">gifs: --</span>
+        <span id="tickerCountLabel">ticker items: --</span>
+      </div>
+
+      <main class="panel-row" id="panelRow" hidden>
+        <section class="panel" id="tickerPanel">
+          <div class="panel-header">
+            <h2 class="panel-title">Ticker</h2>
+            <div class="route-hint">route: /ticker</div>
+          </div>
+          <div class="panel-body">
+            <div class="section">
+              <h3 class="section-title">Display Controls</h3>
+              <div class="field-grid">
+                <div class="field">
+                  <label for="tickerSpeed">scroll speed (s)</label>
+                  <input id="tickerSpeed" type="number" min="30" max="600" step="10">
+                  <div class="hint">lower = faster</div>
+                </div>
+                <div class="field">
+                  <label for="tickerFontSize">font size (px)</label>
+                  <input id="tickerFontSize" type="number" min="8" max="32" step="1">
+                </div>
+              </div>
+              <div class="field">
+                <label for="tickerSeparator">separator</label>
+                <input id="tickerSeparator" class="narrow-input" type="text" maxlength="4">
+              </div>
+            </div>
+
+            <div class="section">
+              <h3 class="section-title">Items</h3>
+              <div class="button-row" style="margin-bottom: 14px;">
+                <button id="openImportButton" class="button-ghost" type="button">bulk import</button>
+                <button id="clearTickerButton" class="button-red" type="button">clear all</button>
+              </div>
+              <ul class="ticker-list" id="tickerList"></ul>
+              <div class="empty-note" id="tickerEmpty" hidden>no items yet</div>
+              <div class="add-row" style="margin-top: 14px;">
+                <input id="newTickerText" type="text" placeholder="new ticker item">
+                <button id="newTickerTagButton" class="tag-button button-ghost" type="button">tag</button>
+                <button id="addTickerButton" class="button-green" type="button">+ add</button>
+              </div>
+            </div>
+          </div>
+          <div class="save-bar">
+            <div class="save-status" id="tickerSaveStatus"></div>
+            <button id="saveTickerButton" class="save-button" type="button">save ticker →</button>
+          </div>
+        </section>
+
+        <section class="panel" id="gifPanel">
+          <div class="panel-header">
+            <h2 class="panel-title">Gif Background</h2>
+            <div class="route-hint">route: /gifbg</div>
+          </div>
+          <div class="panel-body">
+            <div class="section">
+              <h3 class="section-title">Timing Controls</h3>
+              <div class="field-grid">
+                <div class="field">
+                  <label for="gifMinDuration">min duration (ms)</label>
+                  <input id="gifMinDuration" type="number" min="1000" max="60000" step="500">
+                </div>
+                <div class="field">
+                  <label for="gifMaxDuration">max duration (ms)</label>
+                  <input id="gifMaxDuration" type="number" min="1000" max="60000" step="500">
+                </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <h3 class="section-title">Transition Weights</h3>
+              <div class="hint" style="margin-bottom: 14px;">slots in pool. 0 = disabled.</div>
+              <div id="transitionList"></div>
+            </div>
+          </div>
+          <div class="save-bar">
+            <div class="save-status" id="gifSaveStatus"></div>
+            <button id="saveGifButton" class="save-button" type="button">save gif bg →</button>
+          </div>
+        </section>
+      </main>
+
+      <div class="load-error" id="loadError" hidden>dashboard unavailable</div>
+    </div>
+
+    <div class="modal-backdrop" id="importModal" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="importTitle">
+        <div class="modal-header">
+          <h2 class="modal-title" id="importTitle">Bulk Import</h2>
+          <div class="hint">one item per line. use TAG: prefix for highlighted entries.</div>
+        </div>
+        <div class="modal-body">
+          <textarea id="importTextarea" placeholder="latest follower: user123&#10;TAG: live now&#10;discord.gg/example_user"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button id="cancelImportButton" class="button-red" type="button">cancel</button>
+          <button id="confirmImportButton" class="button-green" type="button">import</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const TRANSITION_LABELS = {
+        nothing: "hard cut",
+        hardFlash: "flash",
+        doubleFlash: "double flash",
+        venetianBlinds: "venetian blinds",
+        pixelDissolve: "pixel dissolve",
+        starWipe: "star wipe ⭐",
+        blockFlip: "3d block flip",
+        zoomPunch: "zoom punch"
+      };
+
+      const DEFAULT_CONFIG = {
+        ticker: {
+          speed: 180,
+          fontSize: 12,
+          separator: "·",
+          items: []
+        },
+        gifbg: {
+          minDuration: 5000,
+          maxDuration: 15000,
+          transitions: {
+            nothing: 4,
+            hardFlash: 2,
+            doubleFlash: 1,
+            venetianBlinds: 1,
+            pixelDissolve: 1,
+            starWipe: 1,
+            blockFlip: 1,
+            zoomPunch: 1
+          }
+        }
+      };
+
+      let config = null;
+      let gifCount = 0;
+      let newItemIsTag = false;
+      let draggedTickerIndex = null;
+      let messageTimers = {};
+
+      const panelRow = document.getElementById("panelRow");
+      const loadError = document.getElementById("loadError");
+      const importModal = document.getElementById("importModal");
+      const importTextarea = document.getElementById("importTextarea");
+      const tickerList = document.getElementById("tickerList");
+      const tickerEmpty = document.getElementById("tickerEmpty");
+      const statusSummary = document.getElementById("statusSummary");
+      const gifCountLabel = document.getElementById("gifCountLabel");
+      const tickerCountLabel = document.getElementById("tickerCountLabel");
+
+      function cloneDefaultConfig() {
+        return JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+      }
+
+      function mergeConfig(baseConfig) {
+        const merged = cloneDefaultConfig();
+        if (baseConfig.ticker) {
+          merged.ticker = {
+            ...merged.ticker,
+            ...baseConfig.ticker,
+            items: Array.isArray(baseConfig.ticker.items) ? baseConfig.ticker.items : merged.ticker.items
+          };
+        }
+        if (baseConfig.gifbg) {
+          merged.gifbg = {
+            ...merged.gifbg,
+            ...baseConfig.gifbg,
+            transitions: {
+              ...merged.gifbg.transitions,
+              ...(baseConfig.gifbg.transitions || {})
+            }
+          };
+        }
+        return { ...baseConfig, ...merged };
+      }
+
+      function setStatusMessage(targetId, message, tone) {
+        const element = document.getElementById(targetId);
+        element.textContent = message;
+        element.className = "save-status" + (tone ? " " + tone : "");
+        window.clearTimeout(messageTimers[targetId]);
+        if (message) {
+          messageTimers[targetId] = window.setTimeout(() => {
+            element.textContent = "";
+            element.className = "save-status";
+          }, 4000);
+        }
+      }
+
+      function updateStatusBar() {
+        statusSummary.textContent = "config loaded";
+        gifCountLabel.textContent = "gifs: " + gifCount;
+        tickerCountLabel.textContent = "ticker items: " + config.ticker.items.length;
+      }
+
+      function renderTickerPanel() {
+        document.getElementById("tickerSpeed").value = config.ticker.speed;
+        document.getElementById("tickerFontSize").value = config.ticker.fontSize;
+        document.getElementById("tickerSeparator").value = config.ticker.separator;
+
+        tickerList.innerHTML = "";
+        if (!config.ticker.items.length) {
+          tickerEmpty.hidden = false;
+        } else {
+          tickerEmpty.hidden = true;
+        }
+
+        config.ticker.items.forEach((item, index) => {
+          const row = document.createElement("li");
+          row.className = "ticker-row";
+          row.draggable = true;
+          row.dataset.index = index;
+          row.innerHTML =
+            '<div class="drag-handle">⠿</div>' +
+            '<div class="ticker-text' +
+            (item.cls === "tag" ? " tag" : "") +
+            '">' +
+            escapeHtml(item.text) +
+            "</div>" +
+            '<div class="list-actions">' +
+            '<button class="tag-button button-ghost' +
+            (item.cls === "tag" ? " active" : "") +
+            '" data-action="toggle-tag" type="button">tag</button>' +
+            '<button class="button-red" data-action="delete" type="button">×</button>' +
+            "</div>";
+          tickerList.appendChild(row);
+        });
+
+        updateStatusBar();
+      }
+
+      function renderTransitionControls() {
+        const list = document.getElementById("transitionList");
+        list.innerHTML = "";
+
+        Object.entries(TRANSITION_LABELS).forEach(([key, label]) => {
+          const row = document.createElement("div");
+          row.className = "transition-row";
+          const currentValue = Number(config.gifbg.transitions[key] || 0);
+          row.innerHTML =
+            "<label>" +
+            label +
+            "</label>" +
+            '<input type="range" min="0" max="8" value="' +
+            currentValue +
+            '" data-transition-key="' +
+            key +
+            '">' +
+            '<div class="transition-value" id="transitionValue-' +
+            key +
+            '">' +
+            currentValue +
+            "</div>";
+          list.appendChild(row);
+        });
+      }
+
+      function renderGifPanel() {
+        document.getElementById("gifMinDuration").value = config.gifbg.minDuration;
+        document.getElementById("gifMaxDuration").value = config.gifbg.maxDuration;
+        renderTransitionControls();
+      }
+
+      function renderAll() {
+        renderTickerPanel();
+        renderGifPanel();
+        panelRow.hidden = false;
+      }
+
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, (char) => {
+          const map = {
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;"
+          };
+          return map[char];
+        });
+      }
+
+      function toggleNewItemTagButton() {
+        const button = document.getElementById("newTickerTagButton");
+        button.classList.toggle("active", newItemIsTag);
+      }
+
+      function addTickerItem() {
+        const input = document.getElementById("newTickerText");
+        const text = input.value.trim();
+        if (!text) {
+          return;
+        }
+        config.ticker.items.push({
+          text,
+          cls: newItemIsTag ? "tag" : ""
+        });
+        input.value = "";
+        newItemIsTag = false;
+        toggleNewItemTagButton();
+        renderTickerPanel();
+      }
+
+      function openImportModal() {
+        importTextarea.value = "";
+        importModal.hidden = false;
+        importTextarea.focus();
+      }
+
+      function closeImportModal() {
+        importModal.hidden = true;
+      }
+
+      function importTickerItems() {
+        const lines = importTextarea.value.split(/\r?\n/);
+        const imported = [];
+
+        lines.forEach((line) => {
+          const trimmed = line.trim();
+          if (!trimmed) {
+            return;
+          }
+          const match = trimmed.match(/^tag:\s*(.*)$/i);
+          imported.push({
+            text: match ? match[1].trim() : trimmed,
+            cls: match ? "tag" : ""
+          });
+        });
+
+        if (!imported.length) {
+          closeImportModal();
+          return;
+        }
+
+        config.ticker.items.push(...imported);
+        closeImportModal();
+        renderTickerPanel();
+        setStatusMessage("tickerSaveStatus", "imported " + imported.length + " items", "success");
+      }
+
+      function syncTickerForm() {
+        config.ticker.speed = Number(document.getElementById("tickerSpeed").value) || 180;
+        config.ticker.fontSize = Number(document.getElementById("tickerFontSize").value) || 12;
+        config.ticker.separator = document.getElementById("tickerSeparator").value || "·";
+      }
+
+      function syncGifForm() {
+        config.gifbg.minDuration = Number(document.getElementById("gifMinDuration").value) || 5000;
+        config.gifbg.maxDuration = Number(document.getElementById("gifMaxDuration").value) || 15000;
+        document.querySelectorAll("[data-transition-key]").forEach((input) => {
+          config.gifbg.transitions[input.dataset.transitionKey] = Number(input.value) || 0;
+        });
+      }
+
+      async function postConfig() {
+        const response = await fetch("/config", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(config)
+        });
+        if (!response.ok) {
+          throw new Error("save failed");
+        }
+      }
+
+      async function saveTicker() {
+        try {
+          syncTickerForm();
+          await postConfig();
+          setStatusMessage(
+            "tickerSaveStatus",
+            "saved. refresh OBS sources to apply.",
+            "success"
+          );
+        } catch (error) {
+          setStatusMessage("tickerSaveStatus", "save failed", "error");
+        }
+      }
+
+      async function saveGif() {
+        try {
+          syncGifForm();
+          if (config.gifbg.minDuration >= config.gifbg.maxDuration) {
+            throw new Error("min must be lower");
+          }
+          await postConfig();
+          setStatusMessage(
+            "gifSaveStatus",
+            "saved. refresh OBS sources to apply.",
+            "success"
+          );
+        } catch (error) {
+          const message =
+            error.message === "min must be lower" ? "min duration must be lower than max" : "save failed";
+          setStatusMessage("gifSaveStatus", message, "error");
+        }
+      }
+
+      async function fetchGifCount() {
+        try {
+          const response = await fetch("/gifbg/gifs/", { cache: "no-store" });
+          if (!response.ok) {
+            return 0;
+          }
+          const html = await response.text();
+          return (html.match(/href="[^"]+\.gif"/gi) || []).length;
+        } catch (error) {
+          return 0;
+        }
+      }
+
+      function reorderTickerItems(fromIndex, toIndex) {
+        if (fromIndex === toIndex || fromIndex == null || toIndex == null) {
+          return;
+        }
+        const items = config.ticker.items;
+        const [moved] = items.splice(fromIndex, 1);
+        items.splice(toIndex, 0, moved);
+        renderTickerPanel();
+      }
+
+      function bindEvents() {
+        document.getElementById("addTickerButton").addEventListener("click", addTickerItem);
+        document.getElementById("newTickerText").addEventListener("keydown", (event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            addTickerItem();
+          }
+        });
+        document.getElementById("newTickerTagButton").addEventListener("click", () => {
+          newItemIsTag = !newItemIsTag;
+          toggleNewItemTagButton();
+        });
+        document.getElementById("openImportButton").addEventListener("click", openImportModal);
+        document.getElementById("cancelImportButton").addEventListener("click", closeImportModal);
+        document.getElementById("confirmImportButton").addEventListener("click", importTickerItems);
+        document.getElementById("clearTickerButton").addEventListener("click", () => {
+          if (!config.ticker.items.length) {
+            return;
+          }
+          if (!window.confirm("Clear all ticker items?")) {
+            return;
+          }
+          config.ticker.items = [];
+          renderTickerPanel();
+        });
+        document.getElementById("saveTickerButton").addEventListener("click", saveTicker);
+        document.getElementById("saveGifButton").addEventListener("click", saveGif);
+
+        importModal.addEventListener("click", (event) => {
+          if (event.target === importModal) {
+            closeImportModal();
+          }
+        });
+
+        tickerList.addEventListener("click", (event) => {
+          const button = event.target.closest("button[data-action]");
+          if (!button) {
+            return;
+          }
+          const row = button.closest(".ticker-row");
+          const index = Number(row.dataset.index);
+          const action = button.dataset.action;
+
+          if (action === "toggle-tag") {
+            config.ticker.items[index].cls = config.ticker.items[index].cls === "tag" ? "" : "tag";
+          }
+          if (action === "delete") {
+            config.ticker.items.splice(index, 1);
+          }
+          renderTickerPanel();
+        });
+
+        tickerList.addEventListener("dragstart", (event) => {
+          const row = event.target.closest(".ticker-row");
+          if (!row) {
+            return;
+          }
+          draggedTickerIndex = Number(row.dataset.index);
+          event.dataTransfer.effectAllowed = "move";
+        });
+
+        tickerList.addEventListener("dragover", (event) => {
+          const row = event.target.closest(".ticker-row");
+          if (!row) {
+            return;
+          }
+          event.preventDefault();
+          row.classList.add("drag-over");
+          event.dataTransfer.dropEffect = "move";
+        });
+
+        tickerList.addEventListener("dragleave", (event) => {
+          const row = event.target.closest(".ticker-row");
+          if (row) {
+            row.classList.remove("drag-over");
+          }
+        });
+
+        tickerList.addEventListener("drop", (event) => {
+          const row = event.target.closest(".ticker-row");
+          if (!row) {
+            return;
+          }
+          event.preventDefault();
+          row.classList.remove("drag-over");
+          reorderTickerItems(draggedTickerIndex, Number(row.dataset.index));
+          draggedTickerIndex = null;
+        });
+
+        tickerList.addEventListener("dragend", () => {
+          draggedTickerIndex = null;
+          tickerList.querySelectorAll(".ticker-row").forEach((row) => {
+            row.classList.remove("drag-over");
+          });
+        });
+
+        document.getElementById("transitionList").addEventListener("input", (event) => {
+          if (!event.target.matches("[data-transition-key]")) {
+            return;
+          }
+          const key = event.target.dataset.transitionKey;
+          document.getElementById("transitionValue-" + key).textContent = event.target.value;
+          config.gifbg.transitions[key] = Number(event.target.value) || 0;
+        });
+
+        document.getElementById("tickerSpeed").addEventListener("input", syncTickerForm);
+        document.getElementById("tickerFontSize").addEventListener("input", syncTickerForm);
+        document.getElementById("tickerSeparator").addEventListener("input", syncTickerForm);
+        document.getElementById("gifMinDuration").addEventListener("input", syncGifForm);
+        document.getElementById("gifMaxDuration").addEventListener("input", syncGifForm);
+      }
+
+      async function init() {
+        bindEvents();
+        try {
+          const response = await fetch("/config", { cache: "no-store" });
+          if (!response.ok) {
+            throw new Error("config unavailable");
+          }
+          const loadedConfig = await response.json();
+          config = mergeConfig(loadedConfig);
+          gifCount = await fetchGifCount();
+          renderAll();
+          toggleNewItemTagButton();
+        } catch (error) {
+          loadError.hidden = false;
+          statusSummary.textContent = "load failed";
+        }
+      }
+
+      init();
+    </script>
+  </body>
+</html>
