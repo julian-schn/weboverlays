@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Stream Ticker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap"
+      rel="stylesheet"
+    >
+    <style>
+      :root {
+        --speed: 180s;
+        --font-size: 12px;
+        --panel-bg: rgba(0, 0, 0, 0.72);
+        --panel-border: rgba(255, 255, 255, 0.08);
+        --item-color: rgba(210, 210, 210, 0.85);
+        --tag-color: rgba(255, 255, 255, 0.95);
+        --separator-color: rgba(255, 255, 255, 0.2);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+      }
+
+      body {
+        background: transparent;
+        overflow: hidden;
+        font-family: "Share Tech Mono", monospace;
+      }
+
+      .ticker-wrap {
+        position: relative;
+        width: 100vw;
+        overflow: hidden;
+        background: var(--panel-bg);
+        border-top: 1px solid var(--panel-border);
+      }
+
+      .ticker-wrap::before,
+      .ticker-wrap::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 72px;
+        z-index: 2;
+        pointer-events: none;
+      }
+
+      .ticker-wrap::before {
+        left: 0;
+        background: linear-gradient(to right, rgba(0, 0, 0, 0.88), transparent);
+      }
+
+      .ticker-wrap::after {
+        right: 0;
+        background: linear-gradient(to left, rgba(0, 0, 0, 0.88), transparent);
+      }
+
+      .ticker-track {
+        display: inline-flex;
+        align-items: center;
+        min-width: max-content;
+        padding: 7px 0 6px;
+        white-space: nowrap;
+        font-size: var(--font-size);
+        letter-spacing: 0.04em;
+        animation: ticker-scroll var(--speed) linear infinite;
+        will-change: transform;
+      }
+
+      .ticker-wrap:hover .ticker-track {
+        animation-play-state: paused;
+      }
+
+      .ticker-group {
+        display: inline-flex;
+        align-items: center;
+      }
+
+      .ticker-item {
+        color: var(--item-color);
+        padding: 0 14px;
+        text-transform: uppercase;
+      }
+
+      .ticker-item.tag {
+        color: var(--tag-color);
+        font-weight: 700;
+      }
+
+      .ticker-separator {
+        color: var(--separator-color);
+        padding-right: 14px;
+      }
+
+      .ticker-empty {
+        color: rgba(255, 255, 255, 0.55);
+        padding: 7px 16px 6px;
+        font-size: var(--font-size);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      @keyframes ticker-scroll {
+        from {
+          transform: translateX(0);
+        }
+
+        to {
+          transform: translateX(-50%);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="ticker-wrap" id="tickerWrap">
+      <div class="ticker-empty" id="status">loading ticker...</div>
+    </div>
+
+    <script>
+      const TWITCH_ITEM = { text: "twitch.tv/example_user", cls: "tag" };
+
+      function escapeHtml(value) {
+        return value.replace(/[&<>"']/g, (char) => {
+          const map = {
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;"
+          };
+          return map[char];
+        });
+      }
+
+      function buildItems(items) {
+        const output = [];
+        let sinceLast = 0;
+        for (const item of items) {
+          output.push(item);
+          sinceLast += 1;
+          if (sinceLast >= 2) {
+            output.push(TWITCH_ITEM);
+            sinceLast = 0;
+          }
+        }
+        if (!output.length) {
+          output.push(TWITCH_ITEM);
+        }
+        return output;
+      }
+
+      function buildSegmentHtml(items, separator) {
+        return items
+          .map((item, index) => {
+            const cls = item.cls === "tag" ? "ticker-item tag" : "ticker-item";
+            const separatorHtml =
+              index < items.length - 1
+                ? '<span class="ticker-separator">' + escapeHtml(separator) + "</span>"
+                : "";
+            return (
+              '<span class="' +
+              cls +
+              '">' +
+              escapeHtml(String(item.text || "")) +
+              "</span>" +
+              separatorHtml
+            );
+          })
+          .join("");
+      }
+
+      function applyTicker(config) {
+        const wrap = document.getElementById("tickerWrap");
+        const items = buildItems(Array.isArray(config.items) ? config.items : []);
+        const separator = String(config.separator || "·");
+
+        document.documentElement.style.setProperty("--speed", (config.speed || 180) + "s");
+        document.documentElement.style.setProperty(
+          "--font-size",
+          (config.fontSize || 12) + "px"
+        );
+
+        const segmentHtml = buildSegmentHtml(items, separator);
+        wrap.innerHTML =
+          '<div class="ticker-track">' +
+          '<div class="ticker-group" aria-hidden="false">' +
+          segmentHtml +
+          "</div>" +
+          '<div class="ticker-group" aria-hidden="true">' +
+          segmentHtml +
+          "</div>" +
+          "</div>";
+      }
+
+      async function init() {
+        const status = document.getElementById("status");
+        try {
+          const response = await fetch("/config", { cache: "no-store" });
+          if (!response.ok) {
+            throw new Error("config request failed");
+          }
+          const config = await response.json();
+          applyTicker(config.ticker || {});
+        } catch (error) {
+          status.textContent = "ticker unavailable";
+        }
+      }
+
+      init();
+    </script>
+  </body>
+</html>
