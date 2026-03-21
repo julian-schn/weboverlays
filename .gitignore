@@ -1,0 +1,27 @@
+# macOS / editor noise
+.DS_Store
+
+# Python cache and local tooling
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Local virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Local logs
+*.log
+
+# User-managed GIF drop folder for the OBS background overlay
+components/gifbg/gifs/*
+!components/gifbg/gifs/.gitkeep
