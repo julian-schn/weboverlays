@@ -1,16 +1,18 @@
-# Stream Overlay
+# Stream Overlay Suite
 
-Local OBS overlay suite with one Python server and two browser-source overlays:
+Local OBS overlay suite with one Python server and three browser-source components:
 
 - `ticker` at `http://localhost:8080/ticker`
 - `gifbg` at `http://localhost:8080/gifbg`
+- `spotify` at `http://localhost:8080/spotify`
 
-Configuration is managed from the dashboard at `http://localhost:8080/dashboard`.
+All configuration is managed from the dashboard at `http://localhost:8080/dashboard`.
 
 ## Requirements
 
 - Python 3
 - OBS Studio
+- A Spotify developer app if you want to use the Spotify component
 
 No third-party Python packages are required.
 
@@ -28,26 +30,39 @@ Add these as separate Browser Sources in OBS:
 
 - Ticker: `http://localhost:8080/ticker`
 - GIF background: `http://localhost:8080/gifbg`
+- Spotify now playing: `http://localhost:8080/spotify`
 
-Recommended setup from the spec:
+Typical placement:
 
-- Ticker: full stream width, about `30px` high, placed at the bottom
-- GIF background: full canvas size, placed at the bottom of the source stack
+- Ticker: full stream width, short strip at the bottom
+- GIF background: full canvas size, bottom of the source stack
+- Spotify: wherever you want the now-playing text to appear
 
 ## Dashboard
 
 Open `http://localhost:8080/dashboard` in a normal browser.
 
-From there you can:
+Current dashboard capabilities:
 
-- edit ticker speed, font size, separator, and items
-- bulk import ticker items with optional `TAG:` prefix
-- reorder, tag, and delete ticker items
-- set GIF min/max duration
-- adjust transition weights
-- save each panel independently
+- Ticker: speed, font size, separator, edit-all modal, drag reorder, tag toggles
+- GIF background: timing controls and transition weights
+- Spotify: client ID, masked client secret entry, poll interval, auth status, authorize flow
 
-After saving, refresh the affected OBS browser source manually.
+Each panel saves independently. After saving, refresh the affected OBS browser source manually.
+
+## Spotify Setup
+
+Spotify credentials and token exchange are handled server-side.
+
+1. Create a Spotify app at [developer.spotify.com](https://developer.spotify.com)
+2. Set the redirect URI to `http://localhost:8080/spotify/callback`
+3. Open the dashboard and enter the Spotify client ID and client secret
+4. Save the Spotify panel
+5. Click `authorize with spotify →`
+6. Approve the OAuth request
+7. After the callback succeeds, the Spotify overlay will poll the local proxy endpoint automatically
+
+Required scope: `user-read-currently-playing`
 
 ## GIF Folder
 
@@ -59,26 +74,9 @@ components/gifbg/gifs/
 
 That folder is created automatically on startup if it does not exist.
 
-## Adding a Component
-
-1. Create `components/<name>/index.html` — fetches its config from `GET /config` and reads `config.<name>`
-2. Add a default config section to `config.json`:
-   ```json
-   "<name>": { ... }
-   ```
-3. Add a route in `serve.py`:
-   ```python
-   elif p == "/<name>":
-       self.send_html(BASE / "components" / "<name>" / "index.html")
-   ```
-4. Add a panel in `dashboard.html` inside the `.panel-row` — reads from `config.<name>`, POSTs the full config on save
-5. Add the new route to the startup print block in `serve.py`
-
-See [`spec.md`](spec.md) for detailed conventions.
-
 ## Project Files
 
-- [`serve.py`](serve.py): stdlib HTTP server and routing
-- [`config.json`](config.json): shared overlay config
-- [`dashboard.html`](dashboard.html): config UI
-- [`spec.md`](spec.md): detailed build spec
+- [`serve.py`](serve.py): stdlib HTTP server, config handling, Spotify OAuth/proxy routes
+- [`config.json`](config.json): shared component config
+- [`dashboard.html`](dashboard.html): unified config UI
+- [`spec.md`](spec.md): current implementation spec for the suite

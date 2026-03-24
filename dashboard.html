@@ -319,6 +319,18 @@
         color: var(--green);
       }
 
+      .auth-status {
+        margin-top: 10px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        font-size: 0.85rem;
+      }
+
+      .auth-status.authorized {
+        color: var(--green);
+      }
+
       .ticker-list {
         display: flex;
         flex-direction: column;
@@ -582,6 +594,44 @@
             <button id="saveGifButton" class="save-button" type="button">save gif bg →</button>
           </div>
         </section>
+
+        <section class="panel" id="spotifyPanel">
+          <div class="panel-header">
+            <h2 class="panel-title">Spotify Now Playing</h2>
+            <div class="route-hint">route: localhost:8080/spotify</div>
+          </div>
+          <div class="panel-body">
+            <div class="section">
+              <h3 class="section-title">Credentials</h3>
+              <div class="field">
+                <label for="spotifyClientId">client id</label>
+                <input id="spotifyClientId" type="text" autocomplete="off">
+              </div>
+              <div class="field">
+                <label for="spotifyClientSecret">client secret</label>
+                <input id="spotifyClientSecret" type="password" autocomplete="new-password">
+              </div>
+            </div>
+
+            <div class="section">
+              <h3 class="section-title">Polling</h3>
+              <div class="field">
+                <label for="spotifyPollInterval">poll interval (ms)</label>
+                <input id="spotifyPollInterval" type="number" min="3000" max="30000" step="1000">
+              </div>
+            </div>
+
+            <div class="section">
+              <h3 class="section-title">Authorization</h3>
+              <button id="spotifyAuthorizeButton" class="button-green" type="button">authorize with spotify →</button>
+              <div class="auth-status" id="spotifyAuthStatus">not authorized</div>
+            </div>
+          </div>
+          <div class="save-bar">
+            <div class="save-status" id="spotifySaveStatus"></div>
+            <button id="saveSpotifyButton" class="save-button" type="button">save spotify →</button>
+          </div>
+        </section>
       </main>
 
       <div class="load-error" id="loadError" hidden>dashboard unavailable</div>
@@ -594,7 +644,7 @@
           <div class="hint">one item per line. TAG: prefix marks socials/highlights. tags are auto-spaced in the ticker.</div>
         </div>
         <div class="modal-body">
-          <textarea id="importTextarea" placeholder="a fun fact about something&#10;TAG: twitch.tv/example_user&#10;another fun fact"></textarea>
+          <textarea id="importTextarea" placeholder="a fun fact about something&#10;TAG: twitch.tv/yourchannel&#10;another fun fact"></textarea>
         </div>
         <div class="modal-footer">
           <button id="cancelImportButton" class="button-red" type="button">cancel</button>
@@ -635,8 +685,19 @@
             blockFlip: 1,
             zoomPunch: 1
           }
+        },
+        spotify: {
+          clientId: "",
+          clientSecret: "",
+          accessToken: "",
+          refreshToken: "",
+          tokenExpiresAt: 0,
+          pollInterval: 10000,
+          hasClientSecret: false,
+          authorized: false
         }
       };
+      const SPOTIFY_SECRET_PLACEHOLDER = "••••••••";
 
       let config = null;
       let gifCount = 0;
@@ -675,6 +736,12 @@
               ...merged.gifbg.transitions,
               ...(baseConfig.gifbg.transitions || {})
             }
+          };
+        }
+        if (baseConfig.spotify) {
+          merged.spotify = {
+            ...merged.spotify,
+            ...baseConfig.spotify
           };
         }
         return { ...baseConfig, ...merged };
@@ -767,9 +834,23 @@
         renderTransitionControls();
       }
 
+      function renderSpotifyPanel() {
+        document.getElementById("spotifyClientId").value = config.spotify.clientId || "";
+        document.getElementById("spotifyPollInterval").value = config.spotify.pollInterval || 10000;
+
+        const secretInput = document.getElementById("spotifyClientSecret");
+        secretInput.value = "";
+        secretInput.placeholder = config.spotify.hasClientSecret ? SPOTIFY_SECRET_PLACEHOLDER : "";
+
+        const authStatus = document.getElementById("spotifyAuthStatus");
+        authStatus.textContent = config.spotify.authorized ? "✓ authorized" : "not authorized";
+        authStatus.className = "auth-status" + (config.spotify.authorized ? " authorized" : "");
+      }
+
       function renderAll() {
         renderTickerPanel();
         renderGifPanel();
+        renderSpotifyPanel();
         panelRow.hidden = false;
       }
 
@@ -894,6 +975,16 @@
         });
       }
 
+      function syncSpotifyForm() {
+        const secretInput = document.getElementById("spotifyClientSecret");
+        const secretValue = secretInput.value.trim();
+
+        config.spotify.clientId = document.getElementById("spotifyClientId").value.trim();
+        config.spotify.pollInterval = Number(document.getElementById("spotifyPollInterval").value) || 10000;
+        config.spotify.clientSecret =
+          secretValue && secretValue !== SPOTIFY_SECRET_PLACEHOLDER ? secretValue : "";
+      }
+
       async function postConfig() {
         const response = await fetch("/config", {
           method: "POST",
@@ -940,6 +1031,55 @@
         }
       }
 
+      async function saveSpotify() {
+        try {
+          syncSpotifyForm();
+          if (config.spotify.pollInterval < 3000 || config.spotify.pollInterval > 30000) {
+            throw new Error("poll interval out of range");
+          }
+
+          const typedSecret = config.spotify.clientSecret;
+          await postConfig();
+
+          if (typedSecret) {
+            config.spotify.hasClientSecret = true;
+          }
+          config.spotify.clientSecret = "";
+          renderSpotifyPanel();
+          setStatusMessage(
+            "spotifySaveStatus",
+            "saved. authorize if credentials changed.",
+            "success"
+          );
+        } catch (error) {
+          const message =
+            error.message === "poll interval out of range"
+              ? "poll interval must be 3000-30000 ms"
+              : "save failed";
+          setStatusMessage("spotifySaveStatus", message, "error");
+        }
+      }
+
+      function authorizeSpotify() {
+        const clientId = document.getElementById("spotifyClientId").value.trim();
+        if (!clientId) {
+          setStatusMessage("spotifySaveStatus", "client id required before authorize", "error");
+          return;
+        }
+
+        const params = new URLSearchParams({
+          client_id: clientId,
+          response_type: "code",
+          redirect_uri: "http://localhost:8080/spotify/callback",
+          scope: "user-read-currently-playing"
+        });
+        window.open(
+          "https://accounts.spotify.com/authorize?" + params.toString(),
+          "_blank",
+          "noopener"
+        );
+      }
+
       async function fetchGifCount() {
         try {
           const response = await fetch("/gifbg/gifs/", { cache: "no-store" });
@@ -981,6 +1121,8 @@
         document.getElementById("confirmImportButton").addEventListener("click", importTickerItems);
         document.getElementById("saveTickerButton").addEventListener("click", saveTicker);
         document.getElementById("saveGifButton").addEventListener("click", saveGif);
+        document.getElementById("saveSpotifyButton").addEventListener("click", saveSpotify);
+        document.getElementById("spotifyAuthorizeButton").addEventListener("click", authorizeSpotify);
 
         importModal.addEventListener("click", (event) => {
           if (event.target === importModal) {
@@ -1065,6 +1207,9 @@
         document.getElementById("tickerSeparator").addEventListener("input", syncTickerForm);
         document.getElementById("gifMinDuration").addEventListener("input", syncGifForm);
         document.getElementById("gifMaxDuration").addEventListener("input", syncGifForm);
+        document.getElementById("spotifyClientId").addEventListener("input", syncSpotifyForm);
+        document.getElementById("spotifyClientSecret").addEventListener("input", syncSpotifyForm);
+        document.getElementById("spotifyPollInterval").addEventListener("input", syncSpotifyForm);
       }
 
       async function init() {

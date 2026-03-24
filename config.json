@@ -13,7 +13,7 @@
         "cls": ""
       },
       {
-        "text": "twitch.tv/example_user",
+        "text": "twitch.tv/yourchannel",
         "cls": "tag"
       },
       {
@@ -25,7 +25,7 @@
         "cls": ""
       },
       {
-        "text": "discord.gg/example",
+        "text": "discord.gg/yourserver",
         "cls": "tag"
       },
       {
@@ -37,7 +37,7 @@
         "cls": ""
       },
       {
-        "text": "github.com/example_user",
+        "text": "github.com/yourname",
         "cls": "tag"
       }
     ]
@@ -55,5 +55,13 @@
       "blockFlip": 1,
       "zoomPunch": 1
     }
+  },
+  "spotify": {
+    "clientId": "",
+    "clientSecret": "",
+    "accessToken": "",
+    "refreshToken": "",
+    "tokenExpiresAt": 0,
+    "pollInterval": 10000
   }
 }

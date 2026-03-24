@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Spotify Now Playing</title>
+  </head>
+  <body>
+    <div id="spotify-root" style="display: none;">
+      <span id="sp-title"></span>
+      <span id="sp-artist"></span>
+      <span id="sp-album"></span>
+    </div>
+
+    <script>
+      const root = document.getElementById("spotify-root");
+      const titleEl = document.getElementById("sp-title");
+      const artistEl = document.getElementById("sp-artist");
+      const albumEl = document.getElementById("sp-album");
+
+      let pollInterval = 10000;
+      let timerId = null;
+      let lastTitle = "";
+      let lastArtist = "";
+      let stopped = false;
+
+      function showIdle() {
+        root.style.display = "none";
+      }
+
+      function showPlaying(track) {
+        root.style.display = "";
+        if (track.title !== lastTitle || track.artist !== lastArtist) {
+          titleEl.textContent = track.title || "";
+          artistEl.textContent = track.artist || "";
+          albumEl.textContent = track.album || "";
+          lastTitle = track.title || "";
+          lastArtist = track.artist || "";
+        }
+      }
+
+      function showError() {
+        stopped = true;
+        if (timerId) {
+          window.clearTimeout(timerId);
+        }
+        root.style.display = "";
+        root.textContent = "spotify: not authorized";
+      }
+
+      async function poll() {
+        try {
+          const response = await fetch("/spotify/now-playing", { cache: "no-store" });
+          if (!response.ok) {
+            throw new Error("spotify request failed");
+          }
+
+          const payload = await response.json();
+          if (payload.error === "unauthorized") {
+            showError();
+            return;
+          }
+          if (!payload.playing) {
+            showIdle();
+          } else {
+            showPlaying(payload);
+          }
+        } catch (error) {
+          // Keep the current state and retry on the next scheduled poll.
+        }
+
+        if (!stopped) {
+          timerId = window.setTimeout(poll, pollInterval);
+        }
+      }
+
+      async function init() {
+        try {
+          const response = await fetch("/config", { cache: "no-store" });
+          if (response.ok) {
+            const config = await response.json();
+            pollInterval = Number(config.spotify && config.spotify.pollInterval) || 10000;
+          }
+        } catch (error) {
+          pollInterval = 10000;
+        }
+        poll();
+      }
+
+      init();
+    </script>
+  </body>
+</html>
